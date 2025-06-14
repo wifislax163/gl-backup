@@ -27,12 +27,12 @@ echo "用户安装的包已保存到 $USER_LIST"
 tar czvf "$CONFIG_BACKUP" /etc/config
 echo "系统配置已打包备份到 $CONFIG_BACKUP"
 
-# 6. 备份opkg源配置
-tar czvf "$OPKG_BACKUP" /etc/opkg/customfeeds.conf /etc/opkg/distfeeds.conf 2>/dev/null
+# 6. 备份opkg源配置和主配置
+tar czvf "$OPKG_BACKUP" /etc/opkg/customfeeds.conf /etc/opkg/distfeeds.conf /etc/opkg.conf 2>/dev/null
 if [ $? -eq 0 ]; then
-    echo "opkg源配置已打包备份到 $OPKG_BACKUP"
+    echo "opkg配置已打包备份到 $OPKG_BACKUP"
 else
-    echo "opkg源配置文件不存在或部分不存在，未打包。"
+    echo "opkg配置文件不存在或部分不存在，未打包。"
 fi
 
 echo "全部备份完成！"
