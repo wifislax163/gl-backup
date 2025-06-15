@@ -1,38 +1,39 @@
 #!/bin/sh
 
-# 1. 路径定义
-DEFAULT_LIST="/root/default_packages.txt"
-ALL_LIST="/root/all_packages.txt"
-USER_LIST="/root/user_packages.txt"
-CONFIG_BACKUP="/root/config_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
-OPKG_BACKUP="/root/opkg_conf_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+# 备份时间戳
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+BACKUP_DIR="/root/glinet_backups"
+BACKUP_NAME="glinet_backup_$DATE.tar.gz"
 
-# 2. 备份自带包列表（首次运行时自动生成）
-if [ ! -f "$DEFAULT_LIST" ]; then
-    echo "未检测到自带包列表，正在生成 $DEFAULT_LIST ..."
-    opkg list-installed | awk '{print $1}' > "$DEFAULT_LIST"
-    echo "自带包列表已保存。"
-    echo "请在安装插件后再次运行本脚本以备份用户安装的包。"
-    exit 0
-fi
+# 创建备份目录
+mkdir -p "$BACKUP_DIR"
 
-# 3. 备份当前所有包
-opkg list-installed | awk '{print $1}' > "$ALL_LIST"
+# 获取系统默认软件包列表（GL.iNet 固件通常预装一堆）
+opkg list-installed | cut -f1 -d' ' | sort > "$BACKUP_DIR/default_packages.txt"
+# 获取当前系统软件包
+opkg list-installed | cut -f1 -d' ' | sort > "$BACKUP_DIR/current_packages.txt"
 
-# 4. 过滤出用户安装的包
-grep -v -f "$DEFAULT_LIST" "$ALL_LIST" > "$USER_LIST"
-echo "用户安装的包已保存到 $USER_LIST"
+# 获取单独安装的软件包（即差集）
+comm -13 "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt" > "$BACKUP_DIR/custom_packages.txt"
 
-# 5. 备份系统配置
-tar czvf "$CONFIG_BACKUP" /etc/config
-echo "系统配置已打包备份到 $CONFIG_BACKUP"
+# 备份配置文件
+mkdir -p "$BACKUP_DIR/configs"
+cp -a /etc/config "$BACKUP_DIR/configs/"
+cp -a /etc/firewall.user "$BACKUP_DIR/configs/" 2>/dev/null
+cp -a /etc/rc.local "$BACKUP_DIR/configs/" 2>/dev/null
 
-# 6. 备份opkg源配置和主配置
-tar czvf "$OPKG_BACKUP" /etc/opkg/customfeeds.conf /etc/opkg/distfeeds.conf /etc/opkg.conf 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "opkg配置已打包备份到 $OPKG_BACKUP"
-else
-    echo "opkg配置文件不存在或部分不存在，未打包。"
-fi
+# 备份自定义 opkg 源
+mkdir -p "$BACKUP_DIR/opkg_sources"
+cp -a /etc/opkg/customfeeds.conf "$BACKUP_DIR/opkg_sources/" 2>/dev/null
+cp -a /etc/opkg/distfeeds.conf "$BACKUP_DIR/opkg_sources/" 2>/dev/null
 
-echo "全部备份完成！"
+# 打包所有内容
+cd "$BACKUP_DIR"
+tar -czf "$BACKUP_NAME" custom_packages.txt configs/ opkg_sources/
+
+# 输出备份路径
+echo "备份完成：$BACKUP_DIR/$BACKUP_NAME"
+
+# 清理中间文件（可选）
+rm -rf "$BACKUP_DIR/configs" "$BACKUP_DIR/opkg_sources" "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt"
+
