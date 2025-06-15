@@ -8,13 +8,17 @@ BACKUP_NAME="glinet_backup_$DATE.tar.gz"
 # 创建备份目录
 mkdir -p "$BACKUP_DIR"
 
-# 获取系统默认软件包列表（GL.iNet 固件通常预装一堆）
+# 获取系统默认软件包列表
 opkg list-installed | cut -f1 -d' ' | sort > "$BACKUP_DIR/default_packages.txt"
 # 获取当前系统软件包
 opkg list-installed | cut -f1 -d' ' | sort > "$BACKUP_DIR/current_packages.txt"
 
-# 获取单独安装的软件包（即差集）
-comm -13 "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt" > "$BACKUP_DIR/custom_packages.txt"
+# 获取单独安装的软件包（差集）
+if command -v comm >/dev/null 2>&1; then
+    comm -13 "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt" > "$BACKUP_DIR/custom_packages.txt"
+else
+    grep -Fxvf "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt" > "$BACKUP_DIR/custom_packages.txt"
+fi
 
 # 备份配置文件
 mkdir -p "$BACKUP_DIR/configs"
@@ -22,8 +26,9 @@ cp -a /etc/config "$BACKUP_DIR/configs/"
 cp -a /etc/firewall.user "$BACKUP_DIR/configs/" 2>/dev/null
 cp -a /etc/rc.local "$BACKUP_DIR/configs/" 2>/dev/null
 
-# 备份自定义 opkg 源
+# 备份opkg相关配置（新增/etc/opkg.conf）
 mkdir -p "$BACKUP_DIR/opkg_sources"
+cp -a /etc/opkg.conf "$BACKUP_DIR/opkg_sources/" 2>/dev/null
 cp -a /etc/opkg/customfeeds.conf "$BACKUP_DIR/opkg_sources/" 2>/dev/null
 cp -a /etc/opkg/distfeeds.conf "$BACKUP_DIR/opkg_sources/" 2>/dev/null
 
@@ -36,4 +41,3 @@ echo "备份完成：$BACKUP_DIR/$BACKUP_NAME"
 
 # 清理中间文件（可选）
 rm -rf "$BACKUP_DIR/configs" "$BACKUP_DIR/opkg_sources" "$BACKUP_DIR/default_packages.txt" "$BACKUP_DIR/current_packages.txt"
-
