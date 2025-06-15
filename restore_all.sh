@@ -29,7 +29,10 @@ check_network() {
 prepare_backup() {
   echo "📦 解压备份文件：$BACKUP_TARBALL"
   mkdir -p /tmp/glinet_restore
-  tar -xzf "$BACKUP_TARBALL" -C /tmp/glinet_restore
+  if ! tar -xzf "$BACKUP_TARBALL" -C /tmp/glinet_restore; then
+    echo "❌ 解压失败，请检查备份文件完整性"
+    exit 1
+  fi
 }
 
 # -------------------- 恢复自定义源 --------------------
@@ -37,6 +40,8 @@ restore_feeds() {
   echo "🔧 恢复自定义 opkg 源"
   if [ -d /tmp/glinet_restore/opkg_sources ]; then
     cp -f /tmp/glinet_restore/opkg_sources/* /etc/opkg/
+    [ -f /tmp/glinet_restore/opkg_sources/opkg.conf ] && \
+      cp -f /tmp/glinet_restore/opkg_sources/opkg.conf /etc/
   fi
 }
 
@@ -55,7 +60,7 @@ install_packages() {
         echo "✔️ 已安装：$pkg"
       else
         echo "➕ 安装：$pkg"
-        opkg install "$pkg" || echo "⚠️ 安装失败：$pkg"
+        opkg install "$pkg" --force-depends || echo "⚠️ 安装失败：$pkg"
       fi
     done < /tmp/glinet_restore/custom_packages.txt
   else
@@ -66,6 +71,8 @@ install_packages() {
 # -------------------- 恢复配置文件 --------------------
 restore_configs() {
   echo "⚙️ 正在恢复配置文件..."
+  mkdir -p /etc/config_backup
+  cp -af /etc/config/* /etc/config_backup/ 2>/dev/null
   if [ -d /tmp/glinet_restore/configs ]; then
     cp -af /tmp/glinet_restore/configs/* /etc/config/
   fi
@@ -91,4 +98,3 @@ main() {
 }
 
 main
-
